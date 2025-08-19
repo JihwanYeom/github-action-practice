@@ -19,10 +19,8 @@ jobs:
           key: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY }}
           script: |
             #!/bin/bash
-            # 스크립트 내 명령어 실패 시 즉시 중단
             set -e
             
-            # 프로젝트 디렉토리로 이동
             cd /home/ubuntu/github-action-practice
             
             echo "Start deployment"
@@ -32,29 +30,21 @@ jobs:
             chmod +x ./gradlew
             ./gradlew build -x test
             
-            echo "--- Checking for existing process ---"
+            # --- ✨ 여기가 수정된 부분 ✨ ---
+            echo "--- Terminating existing process if any ---"
+            # pkill: pgrep(찾기)과 kill(죽이기)을 한 번에 수행합니다.
+            # || true: 종료할 프로세스가 없어도 오류로 간주하지 않습니다.
+            pkill -f "java -jar.*github-action-practice.*\.jar" || true
+            echo "Waiting 5 seconds for shutdown..."
+            sleep 5
+            # --- ✨ 수정 끝 ✨ ---
             
-            # ✨ pgrep 패턴을 가장 안전한 형태로 수정 ✨
-            # 정확히 'java -jar'로 실행된 프로세스만 찾고, 다른 스크립트 프로세스는 제외합니다.
-            PID_TO_KILL=$(pgrep -f "java -jar.*github-action-practice.*\.jar" || true)
+            echo "Deploy new application"
             
-            if [ -z "$PID_TO_KILL" ]; then
-                echo "No running application to terminate."
-            else
-                echo "Found running application with PID: $PID_TO_KILL. Terminating..."
-                # 프로세스가 없어도 오류를 내지 않도록 || true 추가
-                kill -15 $PID_TO_KILL || true
-                echo "Termination signal sent. Waiting 5 seconds for shutdown."
-                sleep 5
-            fi
-            
-            echo "--- Process check finished. Starting new application. ---"
-            
-            # find 명령어로 더 안전하게 JAR 파일 찾기
             JAR_FILE=$(find build/libs -name 'github-action-practice-*.jar' ! -name '*-plain.jar' -print -quit)
             
             if [ -z "$JAR_FILE" ]; then
-                echo "ERROR: JAR file not found in build/libs directory."
+                echo "ERROR: JAR file not found."
                 ls -l build/libs/
                 exit 1
             fi
@@ -63,13 +53,8 @@ jobs:
             
             LOG_PATH="/home/ubuntu/github-action-practice/logs/server_log_$(date +%Y-%m-%d).txt"
             
-            # 로그 디렉토리 생성
             mkdir -p $(dirname "$LOG_PATH")
             
-            # 새 애플리케이션을 백그라운드에서 실행
             nohup java -jar --spring.profiles.active=dev "$JAR_FILE" >> "$LOG_PATH" 2>&1 &
-            
-            # 3일 이상 된 오래된 JAR 파일 삭제
-            find build/libs -type f -name "*.jar" -mtime +3 -delete
             
             echo "Deployment complete"
