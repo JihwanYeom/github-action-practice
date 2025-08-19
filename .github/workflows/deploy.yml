@@ -19,55 +19,57 @@ jobs:
           key: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY }}
           script: |
             #!/bin/bash
-            # 스크립트 내 명령어 실패 시 즉시 중단
             set -e
             
-            # 프로젝트 디렉토리로 이동
             cd /home/ubuntu/github-action-practice
             
             echo "Start deployment"
-            echo "Pull repository"
             git pull origin main
             
             echo "Gradle Build (skipping tests)"
             chmod +x ./gradlew
             ./gradlew build -x test
             
-            # 실행 중인 애플리케이션의 PID 찾기
             CURRENT_PID=$(pgrep -f "github-action-practice.*\.jar")
             
             if [ -z "$CURRENT_PID" ]; then
                 echo "No running application"
             else
                 echo "Terminate running application: $CURRENT_PID"
-                # 프로세스가 이미 없어도 오류를 내지 않도록 || true 추가
                 kill -15 $CURRENT_PID || true
                 sleep 5
             fi
             
             echo "Deploy new application"
             
-            # --- ✨ 여기가 수정된 부분 ✨ ---
-            # find 명령어로 더 안전하게 JAR 파일 찾기
             JAR_FILE=$(find build/libs -name 'github-action-practice-*.jar' ! -name '*-plain.jar' -print -quit)
             
-            # JAR 파일을 찾았는지 확인하고, 없으면 명확한 에러 메시지와 함께 중단
             if [ -z "$JAR_FILE" ]; then
-                echo "ERROR: JAR file not found in build/libs directory."
-                # 디버깅을 위해 실제 파일 목록 출력
+                echo "ERROR: JAR file not found."
                 ls -l build/libs/
                 exit 1
             fi
             
             echo "Found JAR file to deploy: $JAR_FILE"
-            # --- ✨ 수정 끝 ✨ ---
             
             LOG_PATH="/home/ubuntu/github-action-practice/logs/server_log_$(date +%Y-%m-%d).txt"
             
-            # 새 애플리케이션을 백그라운드에서 실행
+            # --- ✨ 여기가 수정된 부분 ✨ ---
+            # 1. 로그를 저장할 디렉토리가 없으면 생성 (폴더 부재 문제 해결)
+            mkdir -p $(dirname "$LOG_PATH")
+            
+            # 2. 새 애플리케이션 실행
             nohup java -jar --spring.profiles.active=dev "$JAR_FILE" >> "$LOG_PATH" 2>&1 &
             
-            # 3일 이상 된 오래된 JAR 파일 삭제
+            # 3. 앱이 시작될 시간을 10초 주고, 로그를 출력하여 성공/실패 여부 확인
+            echo "Waiting for application to start..."
+            sleep 10
+            
+            echo "--- Displaying application log for debugging ---"
+            cat "$LOG_PATH"
+            echo "----------------------------------------------"
+            # --- ✨ 수정 끝 ✨ ---
+            
             find build/libs -type f -name "*.jar" -mtime +3 -delete
             
             echo "Deployment complete"
