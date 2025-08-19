@@ -37,7 +37,7 @@ jobs:
                 echo "No running application"
             else
                 echo "Terminate running application: $CURRENT_PID"
-                kill -15 $CURRENT_PID
+                kill -15 $CURRENT_PID || true
                 sleep 5
             fi
             
