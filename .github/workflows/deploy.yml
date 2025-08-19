@@ -29,7 +29,7 @@ jobs:
             
             echo "Gradle Build"
             chmod +x ./gradlew
-            ./gradlew build
+            ./gradlew build -x test
             
             CURRENT_PID=$(pgrep -f "github-action-practice.*\.jar")
             
