@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>게시물 상세</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        .post-details { border: 1px solid #ddd; padding: 15px; margin-top: 20px; border-radius: 5px; }
+        .post-details p { margin-bottom: 10px; }
+        .post-details strong { display: inline-block; width: 80px; }
+        .button-container { margin-top: 20px; }
+        .button-container a, .button-container button { display: inline-block; padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; border: none; cursor: pointer; margin-right: 10px; }
+        .button-container a:hover, .button-container button:hover { background-color: #0056b3; }
+        .delete-button { background-color: #dc3545; }
+        .delete-button:hover { background-color: #c82333; }
+    </style>
+</head>
+<body>
+    <h1>게시물 상세</h1>
+    <div th:if="${post}" class="post-details">
+        <p><strong>제목:</strong> <span th:text="${post.title}"></span></p>
+        <p><strong>작성자:</strong> <span th:text="${post.author}"></span></p>
+        <p><strong>작성일:</strong> <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}"></span></p>
+        <p><strong>내용:</strong></p>
+        <p th:text="${post.content}"></p>
+    </div>
+    <div class="button-container">
+        <a th:href="@{/posts/{id}/edit(id=${post.id})}">수정</a>
+        <form th:action="@{/posts/{id}/delete(id=${post.id})}" method="post" style="display:inline;">
+            <button type="submit" class="delete-button" onclick="return confirm('정말로 삭제하시겠습니까?');">삭제</button>
+        </form>
+        <a href="/posts">목록으로 돌아가기</a>
+    </div>
+</body>
+</html>
