@@ -19,24 +19,49 @@ jobs:
           key: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY }}
           script: |
             #!/bin/bash
-            # 진단을 위해 set -e를 잠시 비활성화하여 스크립트가 중간에 죽지 않게 함
-            # set -e
+            set -e
             
             cd /home/ubuntu/github-action-practice
             
-            echo "--- Starting Diagnosis ---"
+            echo "Start deployment"
+            git pull origin main
             
-            # 문제가 되는 동일한 패턴으로 어떤 프로세스가 검색되는지 확인
-            PIDS_FOUND=$(pgrep -f "java -jar.*github-action-practice.*\.jar")
+            echo "Gradle Build (skipping tests)"
+            chmod +x ./gradlew
+            ./gradlew build -x test
             
-            if [ -z "$PIDS_FOUND" ]; then
-                echo "No matching processes were found by pgrep."
+            echo "--- Terminating existing process if any ---"
+            
+            # --- ✨ 여기가 최종 수정된 부분 ✨ ---
+            # ps와 grep 조합으로 자기 자신을 제외하고 정확하게 Java 프로세스만 찾습니다.
+            PID_TO_KILL=$(ps aux | grep 'github-action-practice.*\.jar' | grep 'java -jar' | grep -v 'grep' | awk '{print $2}')
+            
+            if [ -z "$PID_TO_KILL" ]; then
+                echo "No running application to terminate."
             else
-                echo "pgrep found the following PID(s): $PIDS_FOUND"
-                echo "--- Displaying full process info for these PIDs ---"
-                # 찾은 PID들의 상세 정보를 출력
-                ps -f -p $PIDS_FOUND
-                echo "----------------------------------------------------"
+                echo "Found running application with PID: $PID_TO_KILL. Terminating..."
+                kill -15 $PID_TO_KILL || true
+                echo "Waiting 5 seconds for shutdown."
+                sleep 5
             fi
             
-            echo "--- Diagnosis Finished ---"
+            echo "Deploy new application"
+            
+            JAR_FILE=$(find build/libs -name 'github-action-practice-*.jar' ! -name '*-plain.jar' -print -quit)
+            
+            if [ -z "$JAR_FILE" ]; then
+                echo "ERROR: JAR file not found."
+                ls -l build/libs/
+                exit 1
+            fi
+            
+            echo "Found JAR file to deploy: $JAR_FILE"
+            
+            LOG_PATH="/home/ubuntu/github-action-practice/logs/server_log_$(date +%Y-%m-%d).txt"
+            
+            mkdir -p $(dirname "$LOG_PATH")
+            
+            # JAR 파일 뒤에 옵션이 오도록 순서 수정
+            nohup java -jar "$JAR_FILE" --spring.profiles.active=dev >> "$LOG_PATH" 2>&1 &
+            
+            echo "Deployment complete"
