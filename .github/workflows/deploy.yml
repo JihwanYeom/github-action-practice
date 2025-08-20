@@ -34,7 +34,7 @@ jobs:
             echo "--- Terminating existing process if any ---"
             # pkill: pgrep(찾기)과 kill(죽이기)을 한 번에 수행합니다.
             # || true: 종료할 프로세스가 없어도 오류로 간주하지 않습니다.
-            pkill -f "java -jar.*github-action-practice.*\.jar" || true
+            sudo pkill -f "java -jar.*github-action-practice.*\.jar" || true
             echo "Waiting 5 seconds for shutdown..."
             sleep 5
             # --- ✨ 수정 끝 ✨ ---
@@ -49,12 +49,12 @@ jobs:
                 exit 1
             fi
             
-            echo "Found JAR file to deploy: $JAR_FILE"
+            sudo echo "Found JAR file to deploy: $JAR_FILE"
             
             LOG_PATH="/home/ubuntu/github-action-practice/logs/server_log_$(date +%Y-%m-%d).txt"
             
-            mkdir -p $(dirname "$LOG_PATH")
+            sudo mkdir -p $(dirname "$LOG_PATH")
             
-            nohup java -jar --spring.profiles.active=dev "$JAR_FILE" >> "$LOG_PATH" 2>&1 &
+            sudo nohup java -jar --spring.profiles.active=dev "$JAR_FILE" >> "$LOG_PATH" 2>&1 &
             
             echo "Deployment complete"
