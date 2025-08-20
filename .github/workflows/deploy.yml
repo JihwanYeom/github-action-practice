@@ -19,40 +19,24 @@ jobs:
           key: ${{ secrets.AWS_EC2_SSH_PRIVATE_KEY }}
           script: |
             #!/bin/bash
-            set -e
+            # 진단을 위해 set -e를 잠시 비활성화하여 스크립트가 중간에 죽지 않게 함
+            # set -e
             
             cd /home/ubuntu/github-action-practice
             
-            echo "Start deployment"
-            git pull origin main
+            echo "--- Starting Diagnosis ---"
             
-            echo "Gradle Build (skipping tests)"
-            chmod +x ./gradlew
-            ./gradlew build -x test
+            # 문제가 되는 동일한 패턴으로 어떤 프로세스가 검색되는지 확인
+            PIDS_FOUND=$(pgrep -f "java -jar.*github-action-practice.*\.jar")
             
-            echo "--- Terminating existing process if any ---"
-            pkill -f "java -jar.*github-action-practice.*\.jar" || true
-            echo "Waiting 5 seconds for shutdown..."
-            sleep 5
-            
-            echo "Deploy new application"
-            
-            JAR_FILE=$(find build/libs -name 'github-action-practice-*.jar' ! -name '*-plain.jar' -print -quit)
-            
-            if [ -z "$JAR_FILE" ]; then
-                echo "ERROR: JAR file not found."
-                ls -l build/libs/
-                exit 1
+            if [ -z "$PIDS_FOUND" ]; then
+                echo "No matching processes were found by pgrep."
+            else
+                echo "pgrep found the following PID(s): $PIDS_FOUND"
+                echo "--- Displaying full process info for these PIDs ---"
+                # 찾은 PID들의 상세 정보를 출력
+                ps -f -p $PIDS_FOUND
+                echo "----------------------------------------------------"
             fi
             
-            echo "Found JAR file to deploy: $JAR_FILE"
-            
-            LOG_PATH="/home/ubuntu/github-action-practice/logs/server_log_$(date +%Y-%m-%d).txt"
-            
-            mkdir -p $(dirname "$LOG_PATH")
-            
-            # ✨ 여기가 최종 수정된 부분 ✨
-            # JAR 파일 이름 뒤에 스프링 옵션이 오도록 순서를 수정
-            nohup java -jar "$JAR_FILE" --spring.profiles.active=dev >> "$LOG_PATH" 2>&1 &
-            
-            echo "Deployment complete"
+            echo "--- Diagnosis Finished ---"
