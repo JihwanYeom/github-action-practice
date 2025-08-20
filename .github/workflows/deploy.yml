@@ -31,8 +31,7 @@ jobs:
             ./gradlew build -x test
             
             echo "--- Terminating existing process if any ---"
-            # root로 실행된 java 프로세스를 죽이기 위해 sudo 사용
-            sudo pkill -f "java -jar.*github-action-practice.*\.jar" || true
+            pkill -f "java -jar.*github-action-practice.*\.jar" || true
             echo "Waiting 5 seconds for shutdown..."
             sleep 5
             
@@ -46,17 +45,14 @@ jobs:
                 exit 1
             fi
             
-            # echo 명령어에는 sudo가 필요 없습니다.
             echo "Found JAR file to deploy: $JAR_FILE"
             
             LOG_PATH="/home/ubuntu/github-action-practice/logs/server_log_$(date +%Y-%m-%d).txt"
             
-            # 로그 디렉토리 생성은 sudo로 안전하게 실행
-            sudo mkdir -p $(dirname "$LOG_G_PATH")
+            mkdir -p $(dirname "$LOG_PATH")
             
-            # --- ✨ 여기가 수정된 부분 ✨ ---
-            # 명령어 전체가 root 권한으로 실행되도록 sh -c 로 감싸줍니다.
-            # 이렇게 하면 리다이렉션(>>) 권한 문제도 해결됩니다.
-            sudo sh -c "nohup java -jar '$JAR_FILE' >> '$LOG_PATH' 2>&1 &"
+            # ✨ 여기가 최종 수정된 부분 ✨
+            # JAR 파일 이름 뒤에 스프링 옵션이 오도록 순서를 수정
+            nohup java -jar "$JAR_FILE" --spring.profiles.active=dev >> "$LOG_PATH" 2>&1 &
             
             echo "Deployment complete"
