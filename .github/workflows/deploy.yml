@@ -47,7 +47,7 @@ jobs:
                 echo "ERROR: JAR file not found."
                 ls -l build/libs/
                 exit 1
-            fi
+            
             
             sudo echo "Found JAR file to deploy: $JAR_FILE"
             
@@ -55,6 +55,6 @@ jobs:
             
             sudo mkdir -p $(dirname "$LOG_PATH")
             
-            sudo nohup java -jar --spring.profiles.active=dev "$JAR_FILE" >> "$LOG_PATH" 2>&1 &
+            sudo nohup java -jar --spring.profiles.active "$JAR_FILE" >> "$LOG_PATH" 2>&1 &
             
             echo "Deployment complete"
